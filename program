@@ -53,7 +53,7 @@ while :; do
                 # Сравниваем контрольные суммы; если не совпадают, записываем сообщение об ошибке в журнал событий
                 if [ "$sum1" != "$sum2" ]; then
                     str1=$(date +%d.%m.%y\ %H:%M:%S)
-                    str2="Ошибка! Контрольные суммы файла $f не совпадают!"
+                    str2="Error! The controlsum of file $f do not match!"
                     echo "$str1 $str2" >> /home/user/lab6/eventlog
 
                     # Извлекаем имя файла без пути
