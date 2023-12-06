@@ -15,46 +15,41 @@ then
     exit 1
 fi
 
-# Check that controlled directory is catalog.
 monitoring=$1 # Мониторимая директория
-if [[ ! -d ${monitoring} ]]
-then
-    echo $1 "is not a directory."
-    help
-    exit 1
-fi
-#################
-# Если существует директория с эталонными копиями, удаляем её
-if [ -d /home/user/lab6/backup ]; then
-    rm -r /home/user/lab6/backup
-fi
+backup="/home/user/lab6/backup"
+ControlSum="/home/user/lab6/ControlSum"
+eventlog="/home/user/lab6/eventlog" 
 
+# Если существует директория с эталонными копиями, удаляем её
+if [ -d "$backup" ]; then
+    rm -r "$backup"
+fi
 # Создаем директорию для хранения эталонных копий
-mkdir /home/user/lab6/backup
+mkdir -p "$backup"
 
 # Копируем содержимое мониторимой директории в директорию с эталонами
 cp "$monitoring"/* /home/user/lab6/backup
 
 # Если существует файл с контрольными суммами, удаляем его
-if [ -e /home/user/lab6/ControlSum ]; then
-    rm /home/user/lab6/ControlSum
+if [ -e "$ControlSum"]; then
+    rm "$ControlSum"
 fi
 
 # Создаем новый файл для хранения контрольных сумм
-touch /home/user/lab6/ControlSum
+touch "$ControlSum"
 
 # Для каждого файла в директории с эталонами считаем контрольную сумму и записываем в файл
-for f in /home/user/lab6/backup/*; do
-    sha512sum "$f" >> /home/user/lab6/ControlSum
+for f in "$backup"/*; do
+    sha512sum "$f" >> "$ControlSum"
 done
 
 # Если существует файл журнала событий, удаляем его
-if [ -e /home/user/lab6/eventlog ]; then
-    rm /home/user/lab6/eventlog
+if [ -e "$eventlog" ]; then
+    rm "$eventlog"
 fi
 
 # Создаем новый файл журнала событий
-touch /home/user/lab6/eventlog
+touch "$eventlog"
 #################
 
 
@@ -69,16 +64,12 @@ checksum() {
     then
         return 0
     fi
-    expected=$(grep "${filename}" /home/user/lab6/ControlSum | awk '{print $1}')
+    expected=$(sha256sum "${backup}/${filename}" | awk '{print $1}')
     actual=$(sha256sum "${monitoring}/${filename}" | awk '{print $1}')
-    logger -s "expected: ${expected}"
-    logger -s "actual: ${actual}"
     if [ ${actual} != ${expected} ]
     then
         cp -f "${backup}/${filename}" "${monitoring}/${filename}"
-        logstr="$(date '+%Y-%m-%d %H:%M:%S') - ${monitoring}/${filename} has been recovered from ${backup}/${filename}."
-        echo "$logstr" >> /home/user/lab6/eventlog
-        # logger -s "$(date '+%Y-%m-%d %H:%M:%S') - ${monitoring}/${filename} has been recovered from ${backup}/${filename}."
+        logger -s "$(date '+%Y-%m-%d %H:%M:%S') - ${monitoring}/${filename} has been recovered from ${backup}/${filename}."
     fi
 }
 
