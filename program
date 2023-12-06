@@ -69,7 +69,7 @@ checksum() {
     then
         return 0
     fi
-    expected=$(grep "${filename}" "${monitoring}" | awk '{print $1}')
+    expected=$(grep "${filename}" "${backup}" | awk '{print $1}')
     # expected=$(sha256sum "${backup}/${filename}" | awk '{print $1}')
     actual=$(sha256sum "${monitoring}/${filename}" | awk '{print $1}')
     logger -s "expected:${expected}"
