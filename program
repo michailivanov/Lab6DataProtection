@@ -44,8 +44,8 @@ checkSum() {
         return 0
     fi
 
-    expected=$(sha256sum "${backup}/${filename}" | awk '{print $1}') 
-    actual=$(sha256sum "${controlDir}/${filename}" | awk '{print $1}')
+    expected=$(sha512sum "${backup}/${filename}" | awk '{print $1}') 
+    actual=$(sha512sum "${controlDir}/${filename}" | awk '{print $1}')
     # awk '{print $1}' - извлечение первого поля из вывода команды
 
     # Если хэш-суммы не совпадают 
@@ -56,8 +56,8 @@ checkSum() {
 
         # Сохраняем лог в файле-журнале регистрации событий 
         logstr="$(date '+%Y-%m-%d %H:%M:%S'): [${controlDir}/${filename}]"
-        logstr2=" was changed (checksum didn't match), has been recovered from [${backup}/${filename}]"
-        echo "${logstr}${logstr2}" >> "$eventlog"
+        logstr2=" was changed (checksum didn't match), has been recovered from"
+        echo "${logstr}${logstr2} [${backup}/${filename}]" >> "$eventlog"
     fi
 }
 
