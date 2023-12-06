@@ -69,11 +69,10 @@ checksum() {
     then
         return 0
     fi
-    expected=$(grep "${filename}" "${ControlSum}" | awk '{print $1}')
-    # expected=$(sha256sum "${backup}/${filename}" | awk '{print $1}')
+    expected=$(grep "${filename}" /home/user/lab6/ControlSum | awk '{print $1}')
     actual=$(sha256sum "${monitoring}/${filename}" | awk '{print $1}')
-    logger -s "expected:${expected}"
-    logger -s "actual:${actual}"
+    logger -s "expected: ${expected}"
+    logger -s "actual: ${actual}"
     if [ ${actual} != ${expected} ]
     then
         cp -f "${backup}/${filename}" "${monitoring}/${filename}"
