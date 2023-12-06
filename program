@@ -1,66 +1,70 @@
 #!/bin/bash
-#Программа-сервер контроля и восстановления целостности на командном языке bash
-dir=$1 #контролируемая директория
-if [ /home/user/lab6/Etalon ] #если есть директория, в которой хранятся эталонные копии
-then
-rm -r Etalon #удаляем
-fi
-mkdir Etalon #создаем директорию, храняющую эталоны
-cp $dir/* Etalon #копируем в нее содержимое нашей директории, которую мы контролируем
-if [ /home/user/lab6/ControlSum ] #если есть файл, в котором хранятся контрольные суммы
-then
-rm ControlSum #удаляем
-fi
-touch ControlSum #создаем новый  файл, хранящий контрольные суммы
-for f in Etalon/* #для каждого файла в директории Etalon мы считываем контрольную сумму
-do
-sha512sum $f >> ControlSum #записываем контрольную сумму в файл ControlSum
-done
-if [ /home/user/lab6/eventlog ] #аналогично Etalon и ControlSum
-then
-rm eventlog
-fi
-touch eventlog #создаем файл регистрации событий
 
-Контроль и восстановление целостности файла осуществляется в цикле 
+# Output help message.
+help() {
+    filename=$(basename "$0")
+    echo "Usage: ${filename} monitoring backup"
+    echo "       monitoring  # catalog which monitoring"
+    echo "       backup      # catalog for restoring when file changed in monitoring catalog"
+}
 
-while : #Цикл для двумерного массива. Идем по диагонали
-do
-i=0
-j=0 #ищем, где пересекаются контрольная сумма файла и сам файл
-while read LINE
-do
-for f in $dir/* #в цикле перебираются все файлы директории
-do
-if [ "$j" -eq "$i" ]; then #если номер строки в файле контрольных сумм
-совпадает с номером просматриваемого файла
-sum1=${LINE:0:128}; #считываем в переменную контрольную сумму 
-(обрезаем лишнее)
-str=$(sha512sum "$f"); #вычисляем контрольную сумму текущего файла
-sum2=${str:0:128};
-if [ "$sum1" != "$sum2" ]; then #сравниваем контрольные суммы; 
-если не равны
-str1=$(date +%d.%m.%y\ %H:%M:%S);
-str2="Ошибка! Контрольные суммы файла $f не совпадают!"; 
-#выводим сообщение об ошибке в eventlog
-echo "$str1$str2" >> eventlog;
-string=$f;
-str=${string#*${dir}/}; #сформировано имя файла без пути к нему
-rm $f; #удаляем файл, который был изменен
-cd /.
-cd /home/user/lab6/Etalon #вставляем эталонную копию
-cp $str /home/user/lab6/$dir
-cd /.
-cd /home/user/lab6
-fi #заканчиваем if, если суммы не равны
-fi #заканчиваем if, если  номер строки в файле контрольных сумм 
-не совпадает с номером просматриваемого файла
+# Check the number of parameters.
+if [[ $# != 2 ]]
+then
+    echo "Invalid parameter count."
+    help
+    exit 1
+fi
 
-let "j++";
+# Check if both parameters are catalog.
+monitoring=$1
+backup=$2
+if [[ ! -d ${monitoring} ]]
+then
+    echo $1 "is not a directory."
+    help
+    exit 1
+fi
+if [[ ! -d ${backup} ]]
+then
+    echo $2 "is not a directory."
+    help
+    exit 1
+fi
+
+# Check the given file to see if they exist in backup directory.
+# If so, check the sha1sum value of given file to see if they have been changed.
+# If the file has been changed, recover it from backup folder using cp comand.
+# Using date command for outputing current time.
+# Using logger command for output log into system event viewer.
+checksum() {
+    filename=$1
+    if [[ ! -f "${backup}/${filename}" ]]
+    then
+        return 0
+    fi
+    expected=$(sha256sum "${backup}/${filename}" | awk '{print $1}')
+    actual=$(sha256sum "${monitoring}/${filename}" | awk '{print $1}')
+    if [ ${actual} != ${expected} ]
+    then
+        cp -f "${backup}/${filename}" "${monitoring}/${filename}"
+        logger -s "$(date '+%Y-%m-%d %H:%M:%S') - ${monitoring}/${filename} has been recovered from ${backup}/${filename}."
+    fi
+}
+
+# List all files inside monitoring folder and call checksum function.
+main() {
+    for item in "${monitoring}"/*; do
+        if [[ -f "${item}" ]]
+        then
+            filename=$(basename "${item}")
+            checksum "${filename}"
+        fi
+    done
+}
+
+# Call main function for checking each 5 seconds.
+while :; do
+    main "${monitoring}"
+    sleep 5
 done
-let "i++";
-let j=0;
-done < ControlSum
-sleep 5  #цикл каждые 5 секунд
-done
-exit 0
