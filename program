@@ -69,7 +69,7 @@ checksum() {
     if [ ${actual} != ${expected} ]
     then
         cp -f "${backup}/${filename}" "${monitoring}/${filename}"
-        logstr="$(date '+%Y-%m-%d %H:%M:%S') - ${monitoring}/${filename} has been recovered from ${backup}/${filename}."
+        logstr="$(date '+%Y-%m-%d %H:%M:%S'): The file[${monitoring}/${filename}] was changed (checksum didn't match), has been recovered from the backup[${backup}/${filename}]"
         echo "$logstr" >> "$eventlog"
         # logger -s "$(date '+%Y-%m-%d %H:%M:%S') - ${monitoring}/${filename} has been recovered from ${backup}/${filename}."
     fi
