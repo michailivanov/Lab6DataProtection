@@ -1,23 +1,8 @@
 #!/bin/bash
 
-# Output help message.
-help() {
-    filename=$(basename "$0")
-    echo "Usage: ${filename} monitoring"
-    echo "       monitoring  # catalog which monitoring"
-}
-
-# Check the number of parameters.
-if [[ $# != 1 ]]
-then
-    echo "Invalid parameter count."
-    help
-    exit 1
-fi
-
-monitoring=$1 # Мониторимая директория
-backup="/home/user/lab6/backup"
-ControlSum="/home/user/lab6/ControlSum"
+controlDir=$1 # Контролируемая директория
+backup="/home/user/lab6/backup" # Каталог резервных копий
+controlSum="/home/user/lab6/ControlSum"
 eventlog="/home/user/lab6/eventlog" 
 
 # Если существует директория с эталонными копиями, удаляем её
@@ -28,19 +13,19 @@ fi
 mkdir -p "$backup"
 
 # Копируем содержимое мониторимой директории в директорию с эталонами
-cp "$monitoring"/* /home/user/lab6/backup
+cp "$controlDir"/* "$backup"
 
 # Если существует файл с контрольными суммами, удаляем его
-if [ -e "$ControlSum" ]; then
-    rm "$ControlSum"
+if [ -e "$controlSum" ]; then
+    rm "$controlSum"
 fi
 
 # Создаем новый файл для хранения контрольных сумм
-touch "$ControlSum"
+touch "$controlSum"
 
 # Для каждого файла в директории с эталонами считаем контрольную сумму и записываем в файл
 for f in "$backup"/*; do
-    sha512sum "$f" >> "$ControlSum"
+    sha512sum "$f" >> "$controlSum"
 done
 
 # Если существует файл журнала событий, удаляем его
@@ -50,8 +35,6 @@ fi
 
 # Создаем новый файл журнала событий
 touch "$eventlog"
-#################
-
 
 # Check the given file to see if they exist in backup directory.
 # If so, check the sha1sum value of given file to see if they have been changed.
@@ -65,19 +48,18 @@ checksum() {
         return 0
     fi
     expected=$(sha256sum "${backup}/${filename}" | awk '{print $1}')
-    actual=$(sha256sum "${monitoring}/${filename}" | awk '{print $1}')
+    actual=$(sha256sum "${controlDir}/${filename}" | awk '{print $1}')
     if [ ${actual} != ${expected} ]
     then
-        cp -f "${backup}/${filename}" "${monitoring}/${filename}"
-        logstr="$(date '+%Y-%m-%d %H:%M:%S'): The file[${monitoring}/${filename}] was changed (checksum didn't match), has been recovered from the backup[${backup}/${filename}]"
+        cp -f "${backup}/${filename}" "${controlDir}/${filename}"
+        logstr="$[date '+%Y-%m-%d %H:%M:%S']: The file [${controlDir}/${filename}] was changed (checksum didn't match), has been recovered from the backup [${backup}/${filename}]"
         echo "$logstr" >> "$eventlog"
-        # logger -s "$(date '+%Y-%m-%d %H:%M:%S') - ${monitoring}/${filename} has been recovered from ${backup}/${filename}."
     fi
 }
 
-# List all files inside monitoring folder and call checksum function.
+# List all files inside controlDir folder and call checksum function.
 main() {
-    for item in "${monitoring}"/*; do
+    for item in "${controlDir}"/*; do
         if [[ -f "${item}" ]]
         then
             filename=$(basename "${item}")
@@ -88,6 +70,6 @@ main() {
 
 # Call main function for checking each 5 seconds.
 while :; do
-    main "${monitoring}"
+    main "${controlDir}"
     sleep 5
 done
