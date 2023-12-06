@@ -55,8 +55,8 @@ checkSum() {
         cp -f "${backup}/${filename}" "${controlDir}/${filename}"
 
         # Сохраняем лог в файле-журнале регистрации событий 
-        logstr="$(date '+%Y-%m-%d %H:%M:%S'): The file [${controlDir}/${filename}]"
-        logstr2="was changed (checksum didn't match), has been recovered from the backup [${backup}/${filename}]"
+        logstr="$(date '+%Y-%m-%d %H:%M:%S'): [${controlDir}/${filename}]"
+        logstr2=" was changed (checksum didn't match), has been recovered from [${backup}/${filename}]"
         echo "${logstr}${logstr2}" >> "$eventlog"
     fi
 }
