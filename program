@@ -3,34 +3,60 @@
 # Output help message.
 help() {
     filename=$(basename "$0")
-    echo "Usage: ${filename} monitoring backup"
+    echo "Usage: ${filename} monitoring"
     echo "       monitoring  # catalog which monitoring"
-    echo "       backup      # catalog for restoring when file changed in monitoring catalog"
 }
 
 # Check the number of parameters.
-if [[ $# != 2 ]]
+if [[ $# != 1 ]]
 then
     echo "Invalid parameter count."
     help
     exit 1
 fi
 
-# Check if both parameters are catalog.
-monitoring=$1
-backup=$2
+# Check that controlled directory is catalog.
+monitoring=$1 # Мониторимая директория
 if [[ ! -d ${monitoring} ]]
 then
     echo $1 "is not a directory."
     help
     exit 1
 fi
-if [[ ! -d ${backup} ]]
-then
-    echo $2 "is not a directory."
-    help
-    exit 1
+#################
+# Если существует директория с эталонными копиями, удаляем её
+if [ -d /home/user/lab6/backup ]; then
+    rm -r /home/user/lab6/backup
 fi
+
+# Создаем директорию для хранения эталонных копий
+mkdir /home/user/lab6/backup
+
+# Копируем содержимое мониторимой директории в директорию с эталонами
+cp "$monitoring"/* /home/user/lab6/backup
+
+# Если существует файл с контрольными суммами, удаляем его
+if [ -e /home/user/lab6/ControlSum ]; then
+    rm /home/user/lab6/ControlSum
+fi
+
+# Создаем новый файл для хранения контрольных сумм
+touch /home/user/lab6/ControlSum
+
+# Для каждого файла в директории с эталонами считаем контрольную сумму и записываем в файл
+for f in /home/user/lab6/backup/*; do
+    sha512sum "$f" >> /home/user/lab6/ControlSum
+done
+
+# Если существует файл журнала событий, удаляем его
+if [ -e /home/user/lab6/eventlog ]; then
+    rm /home/user/lab6/eventlog
+fi
+
+# Создаем новый файл журнала событий
+touch /home/user/lab6/eventlog
+#################
+
 
 # Check the given file to see if they exist in backup directory.
 # If so, check the sha1sum value of given file to see if they have been changed.
@@ -48,7 +74,9 @@ checksum() {
     if [ ${actual} != ${expected} ]
     then
         cp -f "${backup}/${filename}" "${monitoring}/${filename}"
-        logger -s "$(date '+%Y-%m-%d %H:%M:%S') - ${monitoring}/${filename} has been recovered from ${backup}/${filename}."
+        logstr="$(date '+%Y-%m-%d %H:%M:%S') - ${monitoring}/${filename} has been recovered from ${backup}/${filename}."
+        echo "$logstr" >> /home/user/lab6/eventlog
+        # logger -s "$(date '+%Y-%m-%d %H:%M:%S') - ${monitoring}/${filename} has been recovered from ${backup}/${filename}."
     fi
 }
 
