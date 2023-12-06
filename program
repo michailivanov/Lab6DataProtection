@@ -1,75 +1,80 @@
 #!/bin/bash
 
 controlDir=$1 # Контролируемая директория
-backup="/home/user/lab6/backup" # Каталог резервных копий
-controlSum="/home/user/lab6/ControlSum"
-eventlog="/home/user/lab6/eventlog" 
+backup="/home/user/lab6/backup" # Директория резервных копий
+controlSum="/home/user/lab6/ControlSum" # Контрольные суммы
+eventlog="/home/user/lab6/eventlog" # Файл-журнал регистрации событий 
 
-# Если существует директория с эталонными копиями, удаляем её
+# Если существует директория резервных копий, удаляем её
 if [ -d "$backup" ]; then
     rm -r "$backup"
 fi
-# Создаем директорию для хранения эталонных копий
+# Создаем директорию для хранения резервных копий
 mkdir -p "$backup"
 
-# Копируем содержимое мониторимой директории в директорию с эталонами
+# Копируем содержимое контролируемой директории в директорию резервных копий
 cp "$controlDir"/* "$backup"
 
 # Если существует файл с контрольными суммами, удаляем его
 if [ -e "$controlSum" ]; then
     rm "$controlSum"
 fi
-
 # Создаем новый файл для хранения контрольных сумм
 touch "$controlSum"
 
-# Для каждого файла в директории с эталонами считаем контрольную сумму и записываем в файл
+# Для каждого файла в директории резервных копий считаем контрольную сумму и записываем в файл
 for f in "$backup"/*; do
     sha512sum "$f" >> "$controlSum"
 done
 
-# Если существует файл журнала событий, удаляем его
+# Если существует файл-журнал регистрации событий, удаляем его
 if [ -e "$eventlog" ]; then
     rm "$eventlog"
 fi
-
-# Создаем новый файл журнала событий
+# Создаем новый файл-журнал регистрации событий
 touch "$eventlog"
 
-# Check the given file to see if they exist in backup directory.
-# If so, check the sha1sum value of given file to see if they have been changed.
-# If the file has been changed, recover it from backup folder using cp comand.
-# Using date command for outputing current time.
-# Using logger command for output log into system event viewer.
-checksum() {
+# Функция для проверки целостности файла по его контрольной сумме и восстановления файла из резервной копии в случае, 
+# если контрольные суммы не совпадают.
+checkSum() {
     filename=$1
+    # Если файла нет в директории резервных копий, завершаем функцию
     if [[ ! -f "${backup}/${filename}" ]]
     then
         return 0
     fi
-    expected=$(sha256sum "${backup}/${filename}" | awk '{print $1}')
+
+    expected=$(sha256sum "${backup}/${filename}" | awk '{print $1}') 
     actual=$(sha256sum "${controlDir}/${filename}" | awk '{print $1}')
+    # awk '{print $1}' - извлечение первого поля из вывода команды
+
+    # Если хэш-суммы не совпадают 
     if [ ${actual} != ${expected} ]
     then
+        # Восстановливаем файл из резервной копии
         cp -f "${backup}/${filename}" "${controlDir}/${filename}"
-        logstr="$(date '+%Y-%m-%d %H:%M:%S'): The file [${controlDir}/${filename}] was changed (checksum didn't match), has been recovered from the backup [${backup}/${filename}]"
-        echo "$logstr" >> "$eventlog"
+
+        # Сохраняем лог в файле-журнале регистрации событий 
+        logstr="$(date '+%Y-%m-%d %H:%M:%S'): The file [${controlDir}/${filename}]"
+        logstr2="was changed (checksum didn't match), has been recovered from the backup [${backup}/${filename}]"
+        echo "${logstr}${logstr2}" >> "$eventlog"
     fi
 }
 
-# List all files inside controlDir folder and call checksum function.
-main() {
+# Для каждого файла в указанной директории $controlDir вызываем функцию checkSum()
+checkSumForEachFile() {
     for item in "${controlDir}"/*; do
+        # Если ${item}, является существующим и обычным файлом (не каталогом или символической ссылкой)
         if [[ -f "${item}" ]]
         then
             filename=$(basename "${item}")
-            checksum "${filename}"
+            checkSum "${filename}"
         fi
     done
 }
 
-# Call main function for checking each 5 seconds.
+# Вызов checkSumForEachFile каждые 5 секунд
 while :; do
-    main "${controlDir}"
+    checkSumForEachFile
     sleep 5
 done
